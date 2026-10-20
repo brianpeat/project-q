@@ -14,7 +14,7 @@ themselves when they are ready.
 ## Help now: the MIDI test
 
 If you own a QS or QuadraSynth, keyboard or rack, a short test in your browser shows what your unit can tell a computer over MIDI, and
-helps Project Q work with more models. It only reads: nothing on your unit is changed or stored.
+helps Project Q work with more models. It only reads: nothing is written to your unit.
 
 **[Open the QS MIDI Test](https://brianpeat.github.io/project-q/midi-test/)** (Chrome or Edge, with your MIDI interface connected both ways).
 
