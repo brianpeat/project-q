@@ -104,7 +104,7 @@
       <button class="small" id="selAll">Select all</button>
       <button class="small" id="selNone">Select none</button>
     </div>
-    <div class="status" id="runStatus">Run goes through every ticked test, the quick ones first. Each test also has its own Run button.</div>
+    <div class="status" id="runStatus">Tick the tests you want (none is ticked to start with), then press Run: it goes through them, the quick ones first. Each test also has its own Run button.</div>
     <div id="testList"></div>
     <p class="note">If the unit stops answering during a test, the page stops at once. Switch the unit off and on, and everything on it will be
       as before. What was read up to that point is kept.</p>
@@ -271,7 +271,7 @@ function renderTests() {
     for (const t of TESTS) {
       const el = document.createElement("div");
       el.className = "test"; el.id = "t-" + t.id;
-      el.innerHTML = `<div class="test-head"><input type="checkbox" checked aria-label="Include ${escapeHTML(t.title)}">
+      el.innerHTML = `<div class="test-head"><input type="checkbox" aria-label="Include ${escapeHTML(t.title)}">
         <div class="t"><h3>${escapeHTML(t.title)}<span class="time">${escapeHTML(t.time)}</span></h3><p>${escapeHTML(t.desc)}</p></div>
         <span class="chip">Not run</span><button class="small" data-run>Run</button></div>
         <div class="test-body"><div data-area></div><div class="status" data-status></div></div>`;
@@ -308,7 +308,8 @@ $("runAll").onclick = () => runQueue(TESTS.filter(t => applies(t) && $("t-" + t.
 $("stop").onclick = () => { stopRequested = true; $("stop").disabled = true; $("runStatus").textContent = "Stopping…"; };
 
 async function runQueue(list) {
-  if (running || !list.length) return;
+  if (running) return;
+  if (!list.length) { $("runStatus").innerHTML = '<span class="warn">Tick at least one test first</span> (or use a test\'s own Run button).'; return; }
   if (!input || !output) { $("runStatus").innerHTML = '<span class="bad">Choose the MIDI ports in step 1 first.</span>'; return; }
   running = true; stopRequested = false;
   let silent = false;

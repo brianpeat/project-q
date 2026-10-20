@@ -29,7 +29,7 @@ will be released when they are ready.
 
 ## How you can help us now: the MIDI test
 
-If you own a QS or QuadraSynth, keyboard or rack, a short test in your browser reads information over MIDI and, when you press Send, saves the results to my server (so if you're curious and you dig and see peatcreative.com in there, that's my server). I will feed that data into Claude Code, and it will work to make sure the apps emulate more and more hardware. No, it's not pulling your ROM files, and it only reads your own patches if you leave the "Your own sounds" test ticked. So to be clear, it only reads: nothing is written to your unit. It will switch screens and programs, but not write anything.
+If you own a QS or QuadraSynth, keyboard or rack, a short test in your browser reads information over MIDI and, when you press Send, saves the results to my server (so if you're curious and you dig and see peatcreative.com in there, that's my server). I will feed that data into Claude Code, and it will work to make sure the apps emulate more and more hardware. No, it's not pulling your ROM files, and it only reads your own patches if you tick the "Your own sounds" test. So to be clear, it only reads: nothing is written to your unit. It will switch screens and programs, but not write anything.
 
 **[Open the QS MIDI Test](https://brianpeat.github.io/project-q/midi-test/)** (Chrome or Edge, with your MIDI interface connected both ways).
 
