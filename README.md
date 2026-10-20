@@ -30,3 +30,6 @@ helps Project Q work with more models. It only reads: nothing on your unit is ch
 
 Project Q is an independent project. Alesis, QS and QuadraSynth are trademarks of their owners, used here only to say what the tools work
 with. Project Q does not include or distribute Alesis's sample ROMs, firmware or factory sounds.
+
+Project Q is also not connected in any way to [ProjectQ](https://github.com/ProjectQ-Framework/ProjectQ), the open-source quantum
+computing framework; the names are only similar.
