@@ -23,9 +23,22 @@ will be released when they are ready.
   This is the player. It emulates the hardware of a QuadraSynth or QS model, and it works pretty well. It won't come with card
   images, sample ROM or firmware ROM files, but it can load them. The goal is to emulate everything, though instead of forcing you to program from a copy of the actual front panel of your hardware, it has a well-organized edit screen and a full library and patch manager. It can be used as a software instrument, as an editor and patch manager for your hardware, or both. The feature list is pretty extensive, and the plan is to run it on Mac, Windows, possibly Linux, and iPad. The macOS and iPadOS versions are nearly finished.
 
+<a href="images/qengine-one-card.png"><img src="images/qengine-one-card.png" width="400" alt="QEngine playing the Sanctuary card"></a>
+<a href="images/qengine-two-cards.png"><img src="images/qengine-two-cards.png" width="400" alt="QEngine with two cards stacked"></a>
+<a href="images/qengine-editor.png"><img src="images/qengine-editor.png" width="400" alt="QEngine's program editor"></a>
+
+*QEngine: one card, two cards stacked, and the program editor. Click an image to see it full size.*
+
 - **QForge**
   This is the missing piece I have been wanting for years. It can open card images and burn them to your hardware. It can open
   sample files and let you build fully working instruments from them. It has a full sample and loop editor and a key map editor, and it even comes with tools that will shrink your files to make sure they fit on the card. It can save images for use in QEngine or let you burn them. It can even convert instruments from other sample formats and put them on a card. The goal is to make it as easy as possible for anyone to make their own cards from scratch.
+
+<a href="images/qforge-start.png"><img src="images/qforge-start.png" width="400" alt="QForge's start page"></a>
+<a href="images/qforge-main.png"><img src="images/qforge-main.png" width="400" alt="QForge's main window"></a>
+<a href="images/qforge-key-map.png"><img src="images/qforge-key-map.png" width="400" alt="QForge's key map"></a>
+<a href="images/qforge-sample-editor.png"><img src="images/qforge-sample-editor.png" width="400" alt="QForge's sample editor"></a>
+
+*QForge: the start page, the main window, the key map with Fit to Card, and the sample editor.*
 
 ## How you can help us now: the MIDI test
 
