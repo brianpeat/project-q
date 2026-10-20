@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QS MIDI Test</title>
+<!-- A read-only MIDI test suite for Alesis QS and QuadraSynth keyboards and racks (2026-10-19, first for a QS 7 owner with a broken screen).
+     Connect, pick tests (or run them all), then send the results to Project Q (qs-midi-submit.php beside this page) or save them. It sends
+     only a device inquiry, dump requests (opcodes 03, 09, 0B, 0C, 0F), Program mode (0D 00), bank select + program changes for the preset
+     scan, and one card block read (13): nothing on the unit is changed, stored or erased. Chrome or Edge over HTTPS. -->
+<style>
+  :root {
+    --bg: #1e1e1e; --panel: #262626; --line: #3a3a3a; --text: #f2f2f2; --dim: #a8a8a8; --green: #609d6d; --green-hi: #7fc28e;
+    --warn: #e0a84a; --bad: #e06a5a; --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, "Segoe UI", -apple-system, sans-serif; }
+  main { max-width: 780px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  .sub { color: var(--dim); margin: 0 0 24px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; margin-bottom: 14px; }
+  .card.off { opacity: .45; pointer-events: none; }
+  .card h2 { font-size: 17px; margin: 0 0 6px; display: flex; gap: 10px; align-items: center; }
+  .num { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--line); font-size: 14px; flex: none; }
+  .card.done .num { background: var(--green); }
+  ul, ol { margin: 6px 0 10px; padding-left: 22px; }
+  label { color: var(--dim); font-size: 13px; }
+  label.block { display: block; margin: 8px 0 4px; }
+  select, input[type=text] { width: 100%; padding: 8px; background: #1a1a1a; color: var(--text); border: 1px solid var(--line); border-radius: 6px; font: inherit; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .row > div { flex: 1 1 240px; }
+  button { font: inherit; font-weight: 600; padding: 8px 15px; border-radius: 7px; border: 1px solid var(--line); background: #333; color: var(--text); cursor: pointer; margin: 8px 8px 0 0; }
+  button.go { background: var(--green); border-color: var(--green); color: #fff; }
+  button.big { font-size: 17px; padding: 10px 26px; }
+  button.small { padding: 4px 11px; font-size: 13px; margin: 0; }
+  button:disabled { opacity: .4; cursor: default; }
+  .status { margin-top: 8px; font-size: 14px; color: var(--dim); }
+  .ok { color: var(--green-hi); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+  .note { font-size: 13px; color: var(--dim); }
+  pre { font: 12px/1.45 var(--mono); background: #151515; border: 1px solid var(--line); border-radius: 6px; padding: 10px; max-height: 200px; overflow: auto; white-space: pre-wrap; word-break: break-all; margin: 8px 0 0; }
+  .unit { margin-top: 10px; padding: 10px 12px; border-radius: 8px; background: #1f2a21; border: 1px solid var(--green); }
+  .unit b { color: var(--green-hi); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; margin-top: 6px; }
+  .seg button { margin: 0; border: 0; border-radius: 0; background: #1a1a1a; font-weight: 500; padding: 5px 14px; }
+  .seg button.on { background: var(--green); color: #fff; }
+  .test { border-top: 1px solid var(--line); padding: 12px 0 10px; }
+  .test:first-of-type { border-top: 0; }
+  .test-head { display: flex; gap: 10px; align-items: flex-start; }
+  .test-head input { margin-top: 5px; width: 17px; height: 17px; accent-color: var(--green); flex: none; }
+  .test-head .t { flex: 1; }
+  .test-head h3 { font-size: 15px; margin: 0; }
+  .time { font-weight: 400; color: var(--dim); font-size: 13px; margin-left: 6px; }
+  .test-head p { margin: 2px 0 0; font-size: 14px; color: #cfcfcf; }
+  .chip { font-size: 12px; padding: 2px 9px; border-radius: 10px; background: #333; color: var(--dim); white-space: nowrap; margin-top: 2px; }
+  .chip.running { background: #3a3220; color: var(--warn); } .chip.done { background: #1f2a21; color: var(--green-hi); }
+  .chip.problem { background: #3a2220; color: var(--bad); }
+  .test-body { margin-left: 27px; }
+  .test.skipped { opacity: .5; }
+  .runbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+  .runbar button { margin: 0; }
+  progress { width: 100%; height: 8px; accent-color: var(--green); margin-top: 8px; }
+  .panel-step { margin-top: 8px; padding: 10px 12px; background: #1f1f1f; border: 1px solid var(--line); border-radius: 8px; }
+  .panel-step ol { margin: 4px 0 0; }
+  .who { display: flex; gap: 18px; flex-wrap: wrap; margin: 4px 0 6px; }
+  .who label { color: var(--text); font-size: 15px; display: flex; gap: 6px; align-items: center; }
+  .who input { accent-color: var(--green); }
+</style>
+</head>
+<body>
+<main>
+  <h1>QS MIDI Test</h1>
+  <p class="sub">A set of short tests that show what your Alesis QS or QuadraSynth (keyboard or rack) can tell a computer over MIDI. They only
+    listen and read: nothing on your unit is changed, stored or erased. Run all of them or just the ones you like, then send the results to
+    Project Q, a free set of apps for these instruments. It helps make them work with more models.</p>
+
+  <section class="card" id="connect">
+    <h2><span class="num">1</span>Connect</h2>
+    <ul>
+      <li>Use <b>Chrome</b> or <b>Edge</b> (Firefox and Safari can't do this).</li>
+      <li>Connect your MIDI interface both ways: the unit's <b>MIDI Out</b> to the interface's In, and the interface's Out to the unit's <b>MIDI In</b>.</li>
+      <li>Close other music programs (a DAW, SoundBridge): on Windows only one program can use a MIDI port at a time.</li>
+    </ul>
+    <button class="go" id="allow">Allow MIDI</button>
+    <div class="status" id="allowStatus"></div>
+    <div class="row" id="ports" hidden>
+      <div><label class="block" for="inSel">From the unit (MIDI In)</label><select id="inSel"></select></div>
+      <div><label class="block" for="outSel">To the unit (MIDI Out)</label><select id="outSel"></select></div>
+    </div>
+    <button id="inquire" hidden>Check the connection</button>
+    <div class="status" id="inqStatus"></div>
+    <div class="unit" id="unit" hidden>
+      <div id="unitText"></div>
+      <div class="note" style="margin-top:6px">Is it a keyboard or a rack?</div>
+      <div class="seg"><button id="kindKeys">Keyboard</button><button id="kindRack">Rack</button></div>
+    </div>
+  </section>
+
+  <section class="card off" id="tests">
+    <h2><span class="num">2</span>Choose the tests and press Run</h2>
+    <div class="runbar">
+      <button class="go big" id="runAll">Run</button>
+      <button id="stop" disabled>Stop</button>
+      <button class="small" id="selAll">Select all</button>
+      <button class="small" id="selNone">Select none</button>
+    </div>
+    <div class="status" id="runStatus">Run goes through every ticked test, the quick ones first. Each test also has its own Run button.</div>
+    <div id="testList"></div>
+    <p class="note">If the unit stops answering during a test, the page stops at once. Switch the unit off and on, and everything on it will be
+      as before. What was read up to that point is kept.</p>
+  </section>
+
+  <section class="card off" id="send">
+    <h2><span class="num">3</span>Send the results</h2>
+    <p>Sending uploads the results of the tests you ran to peatcreative.com, where only Project Q's developer can read them. They are used
+      only to make Project Q work with more models, never published. You can also save the file and email it instead.</p>
+    <div class="who">
+      <label><input type="radio" name="who" value="anon" checked> Send anonymously</label>
+      <label><input type="radio" name="who" value="named"> Include my name</label>
+    </div>
+    <div id="nameBox" hidden><label class="block" for="name">Your name</label><input type="text" id="name" maxlength="100"></div>
+    <label class="block" for="note">A note (optional): anything about your unit or setup</label>
+    <input type="text" id="note" maxlength="300" placeholder="e.g. QS7 with a broken screen, Windows 11">
+    <button class="go" id="sendBtn">Send to Project Q</button>
+    <button id="save">Save results file</button>
+    <button id="copy">Copy results</button>
+    <div class="status" id="sendStatus"></div>
+  </section>
+</main>
+
+<script>
+"use strict";
+const HDR = [0xF0, 0x00, 0x00, 0x0E, 0x0E];
+const $ = id => document.getElementById(id);
+const hex = a => Array.from(a, b => b.toString(16).toUpperCase().padStart(2, "0")).join(" ");
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const isQS = (d, op) => d[0] === 0xF0 && d[1] === 0 && d[2] === 0 && d[3] === 0x0E && d[4] === 0x0E && (op === undefined || d[5] === op);
+function escapeHTML(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
+
+// ---- MIDI plumbing
+let access = null, input = null, output = null, inquiryReply = null;
+let unitKind = null;                                // "keyboard" | "rack"
+let sink = null;                                    // a running test's collector of everything received
+const ignored = { clock: 0, sensing: 0 };
+const waiters = [];
+
+function onMessage(e) {
+  const d = e.data;
+  if (d[0] === 0xF8) { ignored.clock++; return; }
+  if (d[0] === 0xFE) { ignored.sensing++; return; }
+  if (sink) sink(d, e.timeStamp);
+  for (const w of waiters.slice()) if (w.match(d)) { waiters.splice(waiters.indexOf(w), 1); w.resolve(d); }
+}
+function waitFor(match, ms) {
+  return new Promise(resolve => {
+    const w = { match, resolve };
+    waiters.push(w);
+    setTimeout(() => { const k = waiters.indexOf(w); if (k >= 0) { waiters.splice(k, 1); resolve(null); } }, ms);
+  });
+}
+// A request and its answer, tried twice.
+async function request(msg, op, ms = 2500) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const reply = waitFor(d => isQS(d, op), ms);
+    output.send(msg);
+    const d = await reply;
+    if (d) return Array.from(d);
+    await sleep(1200);
+  }
+  return null;
+}
+
+$("allow").onclick = async () => {
+  if (!navigator.requestMIDIAccess) { $("allowStatus").innerHTML = '<span class="bad">This browser has no MIDI. Please open the page in Chrome or Edge.</span>'; return; }
+  try { access = await navigator.requestMIDIAccess({ sysex: true }); }
+  catch (e) { $("allowStatus").innerHTML = `<span class="bad">MIDI was not allowed (${escapeHTML(e.message || e.name)}). Press the lock or MIDI icon in the address bar, allow it, and reload.</span>`; return; }
+  $("allow").disabled = true;
+  $("allowStatus").innerHTML = '<span class="ok">MIDI allowed.</span> Choose the ports your unit is on, then check the connection.';
+  fillPorts(); access.onstatechange = fillPorts;
+  $("ports").hidden = false; $("inquire").hidden = false;
+};
+function fillPorts() {
+  for (const [sel, list] of [[$("inSel"), access.inputs], [$("outSel"), access.outputs]]) {
+    const was = sel.value;
+    sel.innerHTML = "";
+    for (const p of list.values()) sel.add(new Option(p.name, p.id));
+    if (!sel.options.length) sel.add(new Option("(none found: is the interface plugged in?)", ""));
+    if ([...sel.options].some(o => o.value === was)) sel.value = was;
+  }
+  bindPorts();
+}
+$("inSel").onchange = $("outSel").onchange = bindPorts;
+function bindPorts() {
+  if (input) input.onmidimessage = null;
+  input = access.inputs.get($("inSel").value) || null;
+  output = access.outputs.get($("outSel").value) || null;
+  if (input) input.onmidimessage = onMessage;
+}
+
+// The device inquiry's model codes (family 0E; Alesis's list, and those seen on real units).
+const MODELS = { 0x01: ["QuadraSynth Plus Piano", "keyboard"], 0x03: ["QS6", "keyboard"], 0x04: ["QS8", "keyboard"], 0x05: ["QS7", "keyboard"],
+                 0x06: ["QSR", "rack"], 0x0D: ["QS6.1", "keyboard"], 0x0F: ["QS8.1", "keyboard"] };
+let modelName = "an Alesis unit";
+
+$("inquire").onclick = async () => {
+  if (!input || !output) { $("inqStatus").innerHTML = '<span class="bad">Choose both ports first.</span>'; return; }
+  $("inqStatus").textContent = "Asking the unit who it is…";
+  const reply = waitFor(d => d[0] === 0xF0 && d[1] === 0x7E && d[3] === 0x06 && d[4] === 0x02, 2000);
+  output.send([0xF0, 0x7E, 0x7F, 0x06, 0x01, 0xF7]);
+  const d = await reply;
+  inquiryReply = d ? Array.from(d) : null;
+  if (!d) {
+    $("inqStatus").innerHTML = '<span class="warn">No answer.</span> Check both cables and the ports above, then try again. ' +
+      'You can also go on: the tests will say what they get.';
+    showUnit(null);
+  } else if (!(d[5] === 0 && d[6] === 0 && d[7] === 0x0E)) {
+    $("inqStatus").innerHTML = `<span class="warn">Something answered, but not an Alesis unit</span> (${hex(d)}). Check the ports.`;
+    return;
+  } else {
+    $("inqStatus").textContent = "";
+    showUnit(d);
+  }
+  $("connect").classList.add("done");
+  $("tests").classList.remove("off"); $("send").classList.remove("off");
+  renderTests();
+  $("tests").scrollIntoView({ behavior: "smooth", block: "start" });
+};
+
+function showUnit(d) {
+  $("unit").hidden = false;
+  if (!d) { modelName = "an unknown unit"; $("unitText").innerHTML = "<b>Connected</b> (the unit did not say what it is)."; setKind(null); return; }
+  const member = d[10] | (d[11] << 7);
+  const ver = d.length >= 16 ? String.fromCharCode(d[12], d[13]) + "." + String.fromCharCode(d[14], d[15]) : "?";
+  const known = MODELS[member];
+  modelName = known ? known[0] : `an Alesis QS-family unit (model code ${member})`;
+  $("unitText").innerHTML = `<b>Connected: ${escapeHTML(modelName)}</b>, software ${escapeHTML(ver)}. Choose your tests below and press Run.`;
+  setKind(known ? known[1] : null);
+}
+function setKind(k) {
+  unitKind = k;
+  $("kindKeys").classList.toggle("on", k === "keyboard");
+  $("kindRack").classList.toggle("on", k === "rack");
+  renderTests();
+}
+$("kindKeys").onclick = () => setKind("keyboard");
+$("kindRack").onclick = () => setKind("rack");
+
+// ---- the tests
+const TESTS = [
+  { id: "names", title: "What it's set to now", time: "a few seconds",
+    desc: "Reads the name of the program and the mix selected now: what the screen shows." },
+  { id: "global", title: "Global settings", time: "a few seconds",
+    desc: "Reads the global settings (MIDI channel, Program Select, tuning and the rest)." },
+  { id: "card", title: "Card-slot check", time: "a few seconds",
+    desc: "Some models answer a card-read request with a piece of their built-in sound memory. This reads one small block and keeps only its first 32 bytes, enough to tell. Your sound memory is not copied. Any card in the slot helps (a sound card or a RAM card; switch the unit off to insert it). No card? Run it anyway." },
+  { id: "user", title: "Your own sounds", time: "about 30 seconds",
+    desc: "Reads the user memory: the 128 user programs, 100 mixes and 128 effects (the same as a backup)." },
+  { id: "panel", title: "What the front panel sends", time: "2–3 minutes, at the keyboard", keyboardOnly: true,
+    desc: "You press a few buttons, turn the value control and play a little, one step at a time; the page records what the keyboard sends." },
+  { id: "presets", title: "The factory presets", time: "about 15 minutes",
+    desc: "Reads every program in Preset 1–3 and the General MIDI bank (512) with its effect: how your model numbers its built-in samples. The page puts the unit in Program mode and steps through the presets as if you pressed the buttons; nothing is stored. Needs Global MIDI “Program Select” On." },
+];
+const results = {};          // id -> { status, summary, lines[] }
+let running = false, stopRequested = false;
+
+function applies(t) { return !(t.keyboardOnly && unitKind === "rack"); }
+
+function renderTests() {
+  const list = $("testList");
+  if (!list.children.length) {
+    for (const t of TESTS) {
+      const el = document.createElement("div");
+      el.className = "test"; el.id = "t-" + t.id;
+      el.innerHTML = `<div class="test-head"><input type="checkbox" checked aria-label="Include ${escapeHTML(t.title)}">
+        <div class="t"><h3>${escapeHTML(t.title)}<span class="time">${escapeHTML(t.time)}</span></h3><p>${escapeHTML(t.desc)}</p></div>
+        <span class="chip">Not run</span><button class="small" data-run>Run</button></div>
+        <div class="test-body"><div data-area></div><div class="status" data-status></div></div>`;
+      el.querySelector("[data-run]").onclick = () => runQueue([t]);
+      list.appendChild(el);
+    }
+  }
+  for (const t of TESTS) {
+    const el = $("t-" + t.id), ok = applies(t);
+    el.classList.toggle("skipped", !ok);
+    el.querySelector("input").disabled = !ok || running;
+    el.querySelector("[data-run]").disabled = !ok || running;
+    if (!ok) setChip(t.id, "Not for racks", "");
+    else if (!results[t.id] && !running) setChip(t.id, "Not run", "");
+  }
+}
+function ui(id) {
+  const el = $("t-" + id);
+  return {
+    area: el.querySelector("[data-area]"),
+    say(html) { el.querySelector("[data-status]").innerHTML = html; },
+    progress(n, of) {
+      let p = el.querySelector("progress");
+      if (!p) { p = document.createElement("progress"); el.querySelector("[data-status]").before(p); }
+      p.max = of; p.value = n;
+    },
+  };
+}
+function setChip(id, text, kind) { const c = $("t-" + id).querySelector(".chip"); c.textContent = text; c.className = "chip " + kind; }
+
+$("selAll").onclick = () => TESTS.forEach(t => { if (applies(t)) $("t-" + t.id).querySelector("input").checked = true; });
+$("selNone").onclick = () => TESTS.forEach(t => { $("t-" + t.id).querySelector("input").checked = false; });
+$("runAll").onclick = () => runQueue(TESTS.filter(t => applies(t) && $("t-" + t.id).querySelector("input").checked));
+$("stop").onclick = () => { stopRequested = true; $("stop").disabled = true; $("runStatus").textContent = "Stopping…"; };
+
+async function runQueue(list) {
+  if (running || !list.length) return;
+  if (!input || !output) { $("runStatus").innerHTML = '<span class="bad">Choose the MIDI ports in step 1 first.</span>'; return; }
+  running = true; stopRequested = false;
+  let silent = false;
+  $("runAll").disabled = true; $("stop").disabled = false; renderTests();
+  for (const t of list) {
+    if (stopRequested) break;
+    $("runStatus").textContent = `Running: ${t.title}…`;
+    setChip(t.id, "Running…", "running");
+    $("t-" + t.id).scrollIntoView({ behavior: "smooth", block: "center" });
+    let r;
+    try { r = await RUN[t.id](ui(t.id)); }
+    catch (e) { r = { status: "problem", summary: "Stopped by an error: " + e.message, lines: [] }; }
+    sink = null;
+    results[t.id] = r;
+    ui(t.id).say(r.status === "done" ? `<span class="ok">${escapeHTML(r.summary)}</span>` : `<span class="warn">${escapeHTML(r.summary)}</span>`);
+    setChip(t.id, r.status === "done" ? "Done ✓" : r.status === "stopped" ? "Stopped" : "Problem", r.status === "done" ? "done" : "problem");
+    if (r.status === "problem" && r.unitSilent) { silent = true; break; }
+  }
+  $("runStatus").innerHTML = silent ? '<span class="warn">The unit stopped answering, so the rest was not run.</span> Switch it off and on, then run what is left.'
+    : stopRequested ? "Stopped. What was read is kept." : '<span class="ok">Finished.</span> Send the results below, or run more tests first.';
+  running = false; stopRequested = false;
+  $("runAll").disabled = false; $("stop").disabled = true; renderTests();
+}
+
+// Reads the program (or mix) edit buffer and its name: opcode 03 00 answers 02, opcode 0F 100 answers 0E (software 2.00 and up).
+async function readName(kind) {
+  const msg = kind === "program" ? [...HDR, 0x03, 0x00, 0xF7] : [...HDR, 0x0F, 100, 0xF7];
+  const d = await request(msg, kind === "program" ? 0x02 : 0x0E);
+  if (!d) return null;
+  const data = unpack(d.slice(7, d.length - 1), kind === "program" ? 350 : 138);
+  let name = ""; for (let k = 0; k < 10; k++) name += String.fromCharCode(readBits(data, (kind === "program" ? 8 : 5) + 7 * k, 7) + 32);
+  return { name, dump: hex(d) };
+}
+
+const RUN = {
+  async names(u) {
+    const p = await readName("program"), m = await readName("mix");
+    const lines = [`program: ${p ? JSON.stringify(p.name) + "  " + p.dump : "no answer"}`, `mix: ${m ? JSON.stringify(m.name) + "  " + m.dump : "no answer"}`];
+    if (!p && !m) return { status: "problem", summary: "The unit did not answer either read.", lines, unitSilent: true };
+    return { status: "done", summary: `Program: ${p ? p.name.trim() || "(no name)" : "no answer"} · Mix: ${m ? m.name.trim() || "(no name)" : "no answer"}`, lines };
+  },
+
+  async global(u) {
+    const d = await request([...HDR, 0x0B, 0xF7], 0x0A);
+    if (!d) return { status: "problem", summary: "No answer to the global settings request.", lines: [], unitSilent: true };
+    return { status: "done", summary: "Read.", lines: [hex(d)] };
+  },
+
+  async card(u) {
+    const reply = waitFor(d => isQS(d, 0x12) || isQS(d, 0x15), 5000);
+    output.send([...HDR, 0x13, 0x00, 0x00, 0xF7]);
+    const d = await reply;
+    if (!d) return { status: "done", summary: "No answer (that is a result too).", lines: ["answer: none"] };
+    if (d[5] === 0x15) return { status: "done", summary: `The unit refused the read (${d[6] === 0 ? "no card, or not a flash card" : "error " + d[6]}).`, lines: [`answer: refused, error ${d[6]}`] };
+    const first = unpack(Array.from(d.slice(8, 8 + 1171)), 1024).slice(0, 32);
+    const text = String.fromCharCode(...first.map(b => (b >= 32 && b < 127 ? b : 46)));
+    const rom = first[0] === 0x00 && first[1] === 0x80 && first[2] === 0x00 && first[3] === 0x00 && text.includes("ROM");
+    return { status: "done", summary: rom ? "Your unit answers with its built-in sound memory (only 32 bytes kept)." : "The answer is the card's own data, not the built-in sound memory (only 32 bytes kept).",
+             lines: [`answer: block, ROM signature ${rom ? "yes" : "no"}`, `first 32 bytes: ${hex(first)}`, `as text: ${text}`] };
+  },
+
+  async user(u) {
+    const got = []; let last = performance.now();
+    sink = d => { if (isQS(d) && [0x00, 0x06, 0x0A, 0x0E].includes(d[5])) { got.push(Array.from(d)); last = performance.now(); } };
+    output.send([...HDR, 0x0C, 0xF7]);
+    const t0 = performance.now();
+    try {
+      while (!stopRequested && got.length < 357) {
+        await sleep(250);
+        u.progress(got.length, 357); u.say(`Reading… ${got.length} of 357`);
+        if (performance.now() - (got.length ? last : t0) > (got.length ? 4000 : 6000)) break;
+      }
+    } finally { sink = null; }
+    const lines = got.map(hex);
+    if (got.length === 357) return { status: "done", summary: "All 357 parts read.", lines };
+    if (stopRequested) return { status: "stopped", summary: `Stopped after ${got.length} of 357.`, lines };
+    return { status: "problem", summary: got.length ? `The unit stopped after ${got.length} of 357.` : "The unit did not answer.", lines, unitSilent: !got.length };
+  },
+
+  // At the keyboard: one step at a time; everything the keyboard sends is recorded per step.
+  async panel(u) {
+    const STEPS = [
+      { title: "Change programs", read: "program", text: ["Press <b>PROGRAM</b>.", "Choose three or four different programs with the value control or the + / − buttons, a second or two apart.", "Play a note on the last one."] },
+      { title: "Change mixes", read: "mix", text: ["Press <b>MIX</b>.", "Choose two or three different mixes, a second or two apart."] },
+      { title: "Edit a program (nothing is stored)", text: ["Press <b>PROGRAM</b>, then <b>EDIT</b> (any of the edit buttons).", "Turn the value control (or move the data slider) a few steps up and down.", "Go to another edit page and change a value there too.", "Do <b>not</b> press STORE. Afterwards, choose another program to throw the edit away."] },
+      { title: "Sliders and buttons", text: ["Move each of the front-panel sliders (the controllers A–D) up and down.", "Press a few mode and bank buttons: PROGRAM, MIX, GLOBAL, and the bank buttons."] },
+      { title: "Play", text: ["Play a few notes, soft and hard.", "Move the pitch wheel and the mod wheel.", "Press the sustain pedal, if one is connected."] },
+    ];
+    const lines = []; let total = 0;
+    for (let i = 0; i < STEPS.length; i++) {
+      if (stopRequested) { u.area.innerHTML = ""; return { status: "stopped", summary: `Stopped at step ${i + 1} of ${STEPS.length}.`, lines }; }
+      const s = STEPS[i], got = [];
+      u.area.innerHTML = `<div class="panel-step"><b>Step ${i + 1} of ${STEPS.length}: ${s.title}</b><ol>${s.text.map(t => `<li>${t}</li>`).join("")}</ol>
+        <button class="go" data-next>Done, next</button><pre data-log></pre></div>`;
+      const log = u.area.querySelector("[data-log]");
+      let t0 = null;
+      sink = (d, t) => { if (t0 === null) t0 = t; got.push({ t: t - t0, b: Array.from(d) }); log.textContent += describe(Array.from(d)) + "\n"; log.scrollTop = log.scrollHeight; };
+      u.say('<span class="warn">● Recording.</span> Do the steps above, then press Done, next.');
+      await new Promise(res => {
+        const poll = setInterval(() => { if (stopRequested) { clearInterval(poll); res(); } }, 200);
+        u.area.querySelector("[data-next]").onclick = () => { clearInterval(poll); res(); };
+      });
+      await sleep(400); sink = null;
+      lines.push(`-- ${s.title} (${got.length} messages)`);
+      for (const m of got) lines.push(`${(m.t / 1000).toFixed(3).padStart(8)}  ${describe(m.b)}${m.b[0] === 0xF0 ? "\n          full: " + hex(m.b) : ""}`);
+      if (s.read && !stopRequested) { const r = await readName(s.read); lines.push(`read afterwards: ${s.read} ${r ? JSON.stringify(r.name) : "no answer"}`); }
+      total += got.length;
+    }
+    u.area.innerHTML = "";
+    if (stopRequested) return { status: "stopped", summary: "Stopped at the last step.", lines };
+    return { status: "done", summary: `All 5 steps done; ${total} messages recorded.`, lines };
+  },
+
+  // Program mode, find the channel program changes work on, then each preset: bank select + program change, a second's wait (a read
+  // sooner can catch a half-switched program), the program and effect edit buffers.
+  async presets(u) {
+    output.send([...HDR, 0x0D, 0x00, 0xF7]);
+    await sleep(500);
+    const lines = [];
+    const fromPanel = results.panel?.lines.map(l => l.match(/Program change ch (\d+)/)).find(Boolean);
+    const order = [...new Set([fromPanel ? +fromPanel[1] : 1, 1, 16, ...Array.from({ length: 16 }, (_, i) => i + 1)])];
+    let ch = null;
+    for (const c of order) {
+      if (stopRequested) return { status: "stopped", summary: "Stopped before the scan started.", lines };
+      u.say(`Finding the MIDI channel the unit takes program changes on: trying ${c}…`);
+      const names = [];
+      for (const p of [0, 1]) {
+        output.send([0xB0 | (c - 1), 0x00, 1]); output.send([0xC0 | (c - 1), p]);
+        await sleep(1000);
+        const r = await readName("program");
+        if (!r) return { status: "problem", summary: "The unit stopped answering.", lines, unitSilent: true };
+        names.push(r.name);
+      }
+      if (names[0] !== names[1]) { ch = c; break; }
+    }
+    if (!ch) return { status: "problem", summary: 'Program changes are not reaching the unit on any channel. In Global mode, set MIDI "Program Select" to On, then run this again.', lines };
+    lines.push(`channel ${ch}`);
+    let n = 0;
+    for (const bank of [1, 2, 3, 4]) {
+      for (let p = 0; p < 128; p++) {
+        if (stopRequested) return { status: "stopped", summary: `Stopped after ${n} of 512.`, lines };
+        output.send([0xB0 | (ch - 1), 0x00, bank]); output.send([0xC0 | (ch - 1), p]);
+        await sleep(1000);
+        const prog = await request([...HDR, 0x03, 0x00, 0xF7], 0x02);
+        const fx = prog && await request([...HDR, 0x09, 0x00, 0xF7], 0x08);
+        const where = `${bank === 4 ? "General MIDI" : "Preset " + bank} ${p + 1}`;
+        if (!prog || !fx) return { status: "problem", summary: `The unit stopped answering at ${where} (${n} read and kept).`, lines, unitSilent: true };
+        const data = unpack(prog.slice(7, prog.length - 1), 350);
+        let name = ""; for (let k = 0; k < 10; k++) name += String.fromCharCode(readBits(data, 8 + 7 * k, 7) + 32);
+        lines.push(`bank ${bank} program ${p} ${JSON.stringify(name)}`, "  program: " + hex(prog), "  effect: " + hex(fx));
+        n++;
+        u.progress(n, 512); u.say(`Reading… ${n} of 512: ${where}, <b>${escapeHTML(name.trim())}</b>`);
+      }
+    }
+    return { status: "done", summary: "All 512 presets read. The unit is left on the last General MIDI program; choose any program to carry on.", lines };
+  },
+};
+
+// ---- decoding
+function unpack(packed, count) {                       // 8 bytes of 7 bits carry 7 bytes of 8 bits
+  const out = [];
+  for (let i = 0; i < packed.length && out.length < count; i += 8) {
+    const n = Math.min(8, packed.length - i);
+    let v = 0n;
+    for (let j = 0; j < n; j++) v |= BigInt(packed[i + j] & 0x7F) << BigInt(7 * j);
+    for (let k = 0; k < Math.floor(n * 7 / 8) && out.length < count; k++) out.push(Number((v >> BigInt(8 * k)) & 0xFFn));
+  }
+  return out;
+}
+function readBits(b, start, count) {
+  let v = 0;
+  for (let i = 0; i < count; i++) { const bit = start + i; if ((bit >> 3) < b.length && (b[bit >> 3] >> (bit & 7)) & 1) v |= 1 << i; }
+  return v;
+}
+const NOTE = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+function describe(b) {
+  const s = b[0] & 0xF0, ch = (b[0] & 0x0F) + 1;
+  switch (s) {
+    case 0x80: return `Note off   ch ${ch}  ${NOTE[b[1] % 12]}${Math.floor(b[1] / 12) - 2} (${b[1]})`;
+    case 0x90: return `Note ${b[2] ? "on " : "off"}   ch ${ch}  ${NOTE[b[1] % 12]}${Math.floor(b[1] / 12) - 2} (${b[1]}) velocity ${b[2]}`;
+    case 0xA0: return `Key pressure ch ${ch}  note ${b[1]} = ${b[2]}`;
+    case 0xB0: return `Controller ch ${ch}  CC ${b[1]} = ${b[2]}`;
+    case 0xC0: return `Program change ch ${ch}  ${b[1]}`;
+    case 0xD0: return `Aftertouch ch ${ch}  ${b[1]}`;
+    case 0xE0: return `Pitch wheel ch ${ch}  ${((b[2] << 7) | b[1]) - 8192}`;
+  }
+  if (b[0] === 0xF0) return `Sysex (${b.length} bytes)  ${hex(b.length > 48 ? b.slice(0, 48) : b)}${b.length > 48 ? " …" : ""}`;
+  return hex(b);
+}
+
+// ---- the results file
+document.querySelectorAll('input[name=who]').forEach(r => r.onchange = () => { $("nameBox").hidden = !document.querySelector('input[name=who][value=named]').checked; });
+
+function report() {
+  const named = document.querySelector('input[name=who][value=named]').checked;
+  const name = named ? $("name").value.trim() : "", note = $("note").value.trim();
+  const lines = ["QS MIDI Test results", "Date: " + new Date().toISOString().slice(0, 10), "Browser: " + navigator.userAgent];
+  lines.push("From: " + (name || "anonymous"));
+  if (note) lines.push("Note: " + note);
+  lines.push("Unit: " + modelName + " (" + (unitKind || "keyboard or rack not chosen") + ")");
+  lines.push("Device inquiry reply: " + (inquiryReply ? hex(inquiryReply) : "(no answer)"));
+  lines.push(`Ignored: ${ignored.clock} clock, ${ignored.sensing} active sensing`, "");
+  for (const t of TESTS) {
+    const r = results[t.id];
+    lines.push(`== ${t.title}: ${r ? r.status + ". " + r.summary : applies(t) ? "not run" : "not for racks"}`);
+    if (r) lines.push(...r.lines);
+    lines.push("");
+  }
+  return lines.join("\n");
+}
+function anyRun() {
+  if (Object.keys(results).length) return true;
+  $("sendStatus").innerHTML = '<span class="warn">Run at least one test first.</span>'; return false;
+}
+
+$("sendBtn").onclick = async () => {
+  if (!anyRun()) return;
+  const btn = $("sendBtn"); btn.disabled = true;
+  $("sendStatus").textContent = "Sending…";
+  try {
+    // on peatcreative.com the receiver sits beside the page; on GitHub Pages (Project Q's repository) the page sends to it there
+    const receiver = location.hostname.endsWith("github.io") ? "https://peatcreative.com/qs-midi-submit.php" : "qs-midi-submit.php";
+    const r = await fetch(receiver, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: report() });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) throw new Error(j.error || ("HTTP " + r.status));
+    $("sendStatus").innerHTML = `<span class="ok">Sent. Thank you!</span> Reference: ${escapeHTML(j.id)}. If you run more tests, you can send again.`;
+  } catch (e) {
+    $("sendStatus").innerHTML = `<span class="warn">Sending didn't work (${escapeHTML(e.message)}).</span> Please use Save results file and email it instead.`;
+  }
+  btn.disabled = false;
+};
+$("save").onclick = () => {
+  if (!anyRun()) return;
+  const url = URL.createObjectURL(new Blob([report()], { type: "text/plain" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = "qs-midi-test-results.txt"; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  $("sendStatus").innerHTML = '<span class="ok">Saved as qs-midi-test-results.txt</span> (in your Downloads folder).';
+};
+$("copy").onclick = async () => {
+  if (!anyRun()) return;
+  try { await navigator.clipboard.writeText(report()); $("sendStatus").innerHTML = '<span class="ok">Copied.</span> Paste it into an email.'; }
+  catch { $("sendStatus").innerHTML = '<span class="warn">Copying was blocked; please use Save instead.</span>'; }
+};
+</script>
+</body>
+</html>
