@@ -198,8 +198,8 @@ function bindPorts() {
 }
 
 // The device inquiry's model codes (family 0E; Alesis's list, and those seen on real units).
-const MODELS = { 0x01: ["QuadraSynth Plus Piano", "keyboard"], 0x03: ["QS6", "keyboard"], 0x04: ["QS8", "keyboard"], 0x05: ["QS7", "keyboard"],
-                 0x06: ["QSR", "rack"], 0x0D: ["QS6.1", "keyboard"], 0x0F: ["QS8.1", "keyboard"] };
+const MODELS = { 0x01: ["QuadraSynth Plus Piano", "keyboard"], 0x02: ["S4 Plus", "rack"], 0x03: ["QS6", "keyboard"], 0x04: ["QS8", "keyboard"],
+                 0x05: ["QS7", "keyboard"], 0x06: ["QSR", "rack"], 0x0D: ["QS6.1", "keyboard"], 0x0E: ["QS7.1", "keyboard"], 0x0F: ["QS8.1", "keyboard"] };
 let modelName = "an Alesis unit";
 
 $("inquire").onclick = async () => {
